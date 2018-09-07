@@ -2,8 +2,9 @@ var apiKey = require("./../.env").apiKey;
 
 function DoctorModule() {}
 
-//main function
+//Main function responsible for retrieving doctor info and handling it or delegating it to be handled
 DoctorModule.prototype.getDoctors = function(
+    mapObject,
   medicalIssue,
   displayDoctors,
   sortOrder,
@@ -37,12 +38,6 @@ DoctorModule.prototype.getDoctors = function(
             .then(function (response) {
                 var doctorsArr = response.data;
                 displayDoctors(doctorsArr);
-
-                var Chicago = {lat: 41.850033, lng: -87.6500523};
-                var mapObject = new google.maps.Map(document.getElementById("map"), {
-                    zoom: 5,
-                    center: Chicago
-                });
                 var markerLookup = [];
 
                 doctorsArr.forEach(function (doctor) {
@@ -59,6 +54,7 @@ DoctorModule.prototype.getDoctors = function(
                             practice.visit_address.zip;
                         var address = addressForMap.replace("<br>", " ");
 
+                        //converts address into lat/long coordinates
                         $.get(
                             "https://maps.googleapis.com/maps/api/geocode/json?address=" +
                             address
@@ -69,6 +65,8 @@ DoctorModule.prototype.getDoctors = function(
 
                             var prevZoom = mapObject.zoom;
 
+                            //if a doctor is already present at an address, the marker info box
+                            //needs to be updated instead of replaced
                             var locFreeVal = isLocationNotFree(markerLookup, [latitude, longitude]);
                             if (locFreeVal === -1) {
                                 var marker = new google.maps.Marker({
@@ -76,8 +74,9 @@ DoctorModule.prototype.getDoctors = function(
                                     map: mapObject
                                 });
                                 markerLookup.push([latitude, longitude]);
-                                var mkDblClkd = false;
+                                var markClkdAgn = false;
 
+                                //marker info box message
                                 var infoContent = '<div id = "info' + (markerLookup.length - 1) + '"> <h5 id = "popup">' +
                                     doctor.profile.first_name + " " +
                                     doctor.profile.last_name + '</h5>' + '<p id="popup">' +
@@ -89,12 +88,16 @@ DoctorModule.prototype.getDoctors = function(
                                     content: infoContent
                                 });
 
+                                marker.addListener('mouseover', function () {
+                                    info.open(map, marker);
+                                });
+
+                                marker.addListener('mouseout', function () {
+                                    info.close(map, marker);
+                                });
+
                                 marker.addListener('click', function () {
-                                    if (info.getMap()) {
-                                        info.close(map, marker);
-                                    } else {
-                                        info.open(map, marker);
-                                    }
+                                    mapObject.panTo({lat: latitude, lng: longitude});
                                 });
 
                                 marker.addListener('dblclick', function () {
@@ -103,12 +106,14 @@ DoctorModule.prototype.getDoctors = function(
                                         prevZoom = mapObject.zoom;
                                         mapObject.setZoom(17);
                                     }
-                                    if (mkDblClkd && mapObject.zoom >= 17) {
+                                    if (markClkdAgn && mapObject.zoom >= 17) {
                                         mapObject.setZoom(prevZoom);
                                     }
-                                    mkDblClkd = !mkDblClkd;
+                                    markClkdAgn = !markClkdAgn; //used to handle multiple double clicks on marker
                                 });
                             } else {
+
+                                //updates marker when necessary instead of overwriting
                                 var checkExist = setInterval(function() {
                                     if (document.getElementById('info0')) {
                                         var infoToEdit = document.getElementById('info0');
@@ -123,16 +128,18 @@ DoctorModule.prototype.getDoctors = function(
                                 }, 50);
                             }
 
+                            //initially displayed marker is first
                             if (practice === doctorsArr[0].practices[0]) {
                                 mapObject.panTo({lat: latitude, lng: longitude});
-                                mapObject.setZoom(17);
+                                mapObject.setZoom(5);
                             }
                         });
                     });
                 });
             })
             .fail(function (error) {
-                $('#doctor-list').empty().append(
+                $('#doctor-list').empty();
+                $('#error-msg').empty().append(
                     '<div class="well">' +
                     '<h3>' +
                     'Your search has failed. Please check your inputs.' +
@@ -143,8 +150,8 @@ DoctorModule.prototype.getDoctors = function(
             });
             return true;
     } else {
-        $('#doctor-list').empty()
-        $('#doctor-list').append(
+        $('#doctor-list').empty();
+        $('#error-msg').empty().append(
             '<div class="well">' +
             '<h3>' +
             'Your must specify the state if you specify a city.' +

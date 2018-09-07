@@ -2,6 +2,7 @@
 
 ## Description
 Physician Finder allows users to find doctors given names, cities, and/or specializations and displays the locations of their offices on a map.
+Single-click a marker to move to a location and double-click a marker to zoom in (or zoom out when already zoomed in).
 
 
 ## Setup (OSX)

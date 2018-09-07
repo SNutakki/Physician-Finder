@@ -1,10 +1,12 @@
 var apiKey = require('./../.env').apiKey;
 var DoctorModule = require('./../js/doctor.js').doctorModule;
 
+//Displays a list of doctors after a search is performed
 function displayDoctors(doctorsArr) {
+    $('#error-msg').empty();
   $('#doctor-list').empty();
   if (doctorsArr.length === 0) {
-    $('#doctor-list').append(
+    $('#error-msg').append(
       '<div class="well">' +
       '<h3>' +
       'Your search has returned no results.' +
@@ -16,6 +18,8 @@ function displayDoctors(doctorsArr) {
       var specialties = '';
       var practices = '';
       var title = '';
+
+      //check if specialty/address info exists
       if (doctor.specialties[0] !== undefined) {
         specialties = ' (' + doctor.specialties[0].name + ')';
       }
@@ -24,6 +28,7 @@ function displayDoctors(doctorsArr) {
         practices = '<h4> Practice Locations:</h4>' +
             '<div id="practices-' + doctor.uid +'">' + '</div>';
       }
+
       if (doctor.profile.title !== undefined) {
         title = ", " +
             doctor.profile.title;
@@ -45,6 +50,7 @@ function displayDoctors(doctorsArr) {
         '</div>'
       );
 
+      //Appends addresses for ll doctors
       doctor.practices.forEach(function(practice) {
         if (!($('#practices-' + doctor.uid + ':contains(' + practice.name + ')').length > 0)) {
             $('#practices-' + doctor.uid).append(
@@ -64,8 +70,15 @@ function displayDoctors(doctorsArr) {
   }
 }
 
+//Runs upon index.html being initially loaded
 $(document).ready(function() {
   var doctorModule = new DoctorModule();
+    //Map created with Kansas City at Center
+    var kansCity = {lat: 39.015697, lng: -94.565559};
+    var mapObject = new google.maps.Map(document.getElementById("map"), {
+        zoom: 4,
+        center: kansCity
+    });
   $('#issue-form').submit(function(event) {
     event.preventDefault();
     var medicalIssue = $('#issue-input').val();
@@ -74,10 +87,8 @@ $(document).ready(function() {
     var city = $('#city').val();
     var state = $('#state').val();
     var resCount = $('#res-count').val();
-    var result = doctorModule.getDoctors(medicalIssue, displayDoctors, sortOrder, doctorName, city, state, resCount);
+    var result = doctorModule.getDoctors(mapObject, medicalIssue, displayDoctors,
+        sortOrder, doctorName, city, state, resCount);
     console.log(result);
-    if (result) {
-        $('#map').show();
-    }
   });
 });
