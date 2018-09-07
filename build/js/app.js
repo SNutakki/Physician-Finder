@@ -46,15 +46,12 @@ DoctorModule.prototype.getDoctors = function(
                     zoom: 5,
                     center: Chicago
                 });
-                var firstResult = true;
+                var markerLookup = [];
 
                 doctorsArr.forEach(function (doctor) {
-                    var practicesArr = [];
-                    doctor.practices.forEach(function (practice) {
-                        practicesArr.push(practice);
-                    });
 
-                    practicesArr.forEach(function (practice) {
+                    doctor.practices.forEach(function (practice) {
+                        console.log(doctor.profile.first_name);
                         var addressForMap =
                             practice.visit_address.street +
                             "<br>" +
@@ -72,50 +69,73 @@ DoctorModule.prototype.getDoctors = function(
                             console.log(response.results);
                             var latitude = response.results[0].geometry.location.lat;
                             var longitude = response.results[0].geometry.location.lng;
-                            var marker = new google.maps.Marker({
-                                position: {lat: latitude, lng: longitude},
-                                map: mapObject
-                            });
 
-                            var infoContent = '<h5 id = "popup">' + doctor.profile.first_name + " " +
-                                doctor.profile.last_name + '</h5>' + '<p id="popup">' + addressForMap  + '</p>';
+                            var prevZoom = mapObject.zoom;
 
-                            var info = new google.maps.InfoWindow({
-                                content: infoContent
-                            });
+                            var locFreeVal = isLocationNotFree(markerLookup, [latitude, longitude]);
+                            if (locFreeVal === -1) {
+                                var marker = new google.maps.Marker({
+                                    position: {lat: latitude, lng: longitude},
+                                    map: mapObject
+                                });
+                                markerLookup.push([latitude, longitude]);
+                                var mkDblClkd = false;
 
-                            marker.addListener('click', function() {
-                                if (info.getMap()) {
-                                    info.close(map, marker);
-                                } else {
-                                    info.open(map,marker)
-                                }
-                            });
+                                var infoContent = '<div id = "info' + (markerLookup.length - 1) + '"> <h5 id = "popup">' +
+                                    doctor.profile.first_name + " " +
+                                    doctor.profile.last_name + '</h5>' + '<p id="popup">' +
+                                    addressForMap + '</p>' + '</div>';
 
-                             marker.addListener('dblclick', function() {
-                                 mapObject.panTo({lat: latitude, lng: longitude});
-                                 if (mapObject.zoom < 17) {
-                                     mapObject.setZoom(17);
-                                 } else {
-                                     mapObject.setZoom(5);
-                                 }
+                                console.log("Displaying infoContent:" + infoContent);
 
-                             });
+                                var info = new google.maps.InfoWindow({
+                                    content: infoContent
+                                });
 
-                            if (firstResult) {
-                                mapObject.panTo({lat: latitude, lng: longitude});
-                                firstResult = false;
+                                marker.addListener('click', function () {
+                                    if (info.getMap()) {
+                                        info.close(map, marker);
+                                    } else {
+                                        info.open(map, marker);
+                                    }
+                                });
+
+                                marker.addListener('dblclick', function () {
+                                    mapObject.panTo({lat: latitude, lng: longitude});
+                                    if (mapObject.zoom < 17) {
+                                        prevZoom = mapObject.zoom;
+                                        mapObject.setZoom(17);
+                                    }
+                                    if (mkDblClkd && mapObject.zoom >= 17) {
+                                        mapObject.setZoom(prevZoom);
+                                    }
+                                    mkDblClkd = !mkDblClkd;
+                                });
+                            } else {
+                                var checkExist = setInterval(function() {
+                                    if (document.getElementById('info0')) {
+                                        var infoToEdit = document.getElementById('info0');
+                                        console.log("Displaying infoToEdit:" + infoToEdit.toString());
+                                        var textToEdit = infoToEdit.getElementsByTagName("h5")[0].innerHTML;
+                                        if (!textToEdit.includes(doctor.profile.first_name + " " + doctor.profile.last_name)) {
+                                            infoToEdit.getElementsByTagName("h5")[0].innerHTML += ",<br>" +
+                                                doctor.profile.first_name + " " + doctor.profile.last_name;
+                                        }
+                                        clearInterval(checkExist);
+                                    }
+                                }, 50);
                             }
-                            // console.log(response.lat);
-                            // console.log(response.lng);
+
+                            if (practice === doctorsArr[0].practices[0]) {
+                                mapObject.panTo({lat: latitude, lng: longitude});
+                                mapObject.setZoom(17);
+                            }
                         });
                     });
                 });
             })
             .fail(function (error) {
-                console.log("fail");
-                $('#doctor-list').empty();
-                $('#doctor-list').append(
+                $('#doctor-list').empty().append(
                     '<div class="well">' +
                     '<h3>' +
                     'Your search has failed. Please check your inputs.' +
@@ -138,25 +158,14 @@ DoctorModule.prototype.getDoctors = function(
     }
 };
 
-// DoctorModule.prototype.createMap = function() {
-//
-// };
-
-// DoctorModule.prototype.callGeocoder = function(address) {
-//   $.get("http://maps.googleapis.com/maps/api/geocode/json?address=" + address)
-//     .then(function(response) {
-//
-//       console.log(response.results);
-//       var latitude = response.results[0].geometry.location.lat;
-//       var longitude = response.results[0].geometry.location.lng;
-//       var marker = new google.maps.Marker({
-//         position: {lat: latitude, lng: longitude},
-//         map: mapObject
-//       });
-//       // console.log(response.lat);
-//       // console.log(response.lng);
-//     });
-// };
+function isLocationNotFree(lookup, search) {
+    for (var i = 0, l = lookup.length; i < l; i++) {
+        if (lookup[i][0] === search[0] && lookup[i][1] === search[1]) {
+            return i;
+        }
+    }
+    return -1;
+}
 
 exports.doctorModule = DoctorModule;
 
@@ -209,44 +218,26 @@ function displayDoctors(doctorsArr) {
       );
 
       doctor.practices.forEach(function(practice) {
-        $('#practices-' + doctor.uid).append(
-          practice.name +
-          '<ul>' +
-            '<li>' +
-            practice.visit_address.street + '<br>' +
-            practice.visit_address.city + ', ' +
-            practice.visit_address.state + " " +
-            practice.visit_address.zip +
-            '</li>' +
-          '</ul>'
-        );
+        if (!($('#practices-' + doctor.uid + ':contains(' + practice.name + ')').length > 0)) {
+            $('#practices-' + doctor.uid).append(
+                practice.name +
+                '<ul>' +
+                '<li>' +
+                practice.visit_address.street + '<br>' +
+                practice.visit_address.city + ', ' +
+                practice.visit_address.state + " " +
+                practice.visit_address.zip +
+                '</li>' +
+                '</ul>'
+            );
+        }
       });
     });
   }
 }
 
-// function getPracticeLocations(doctorsArr) {
-//   var practicesArr = [];
-//   var practiceAddresses = [];
-//   doctorsArr.forEach(function(doctor) {
-//     doctor.practices.forEach(function(practice) {
-//       practicesArr.push(practice);
-//     });
-//
-//     practicesArr.forEach(function(practice) {
-//       var address = practice.visit_address.street + " " +
-//         practice.visit_address.city + ', ' +
-//         practice.visit_address.state + " " +
-//         practice.visit_address.zip;
-//       practiceAddresses.push(address);
-//     });
-//   });
-//   return practiceAddresses;
-// }
-
 $(document).ready(function() {
   var doctorModule = new DoctorModule();
-  // doctorModule.createMap();
   $('#issue-form').submit(function(event) {
     event.preventDefault();
     var medicalIssue = $('#issue-input').val();
