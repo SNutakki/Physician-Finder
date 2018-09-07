@@ -2,6 +2,7 @@ var apiKey = require("./../.env").apiKey;
 
 function DoctorModule() {}
 
+//main function
 DoctorModule.prototype.getDoctors = function(
   medicalIssue,
   displayDoctors,
@@ -153,6 +154,7 @@ DoctorModule.prototype.getDoctors = function(
         return false;
     }
 };
+
 
 function isLocationNotFree(lookup, search) {
     for (var i = 0, l = lookup.length; i < l; i++) {
