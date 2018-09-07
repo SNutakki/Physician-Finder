@@ -86,13 +86,16 @@ $(document).ready(function() {
   // doctorModule.createMap();
   $('#issue-form').submit(function(event) {
     event.preventDefault();
-
     var medicalIssue = $('#issue-input').val();
     var sortOrder = $('#sort-order').val();
     var doctorName = $('#doctor-name').val();
-    var locName = $('#loc-name').val();
+    var city = $('#city').val();
+    var state = $('#state').val();
     var resCount = $('#res-count').val();
-    doctorModule.getDoctors(medicalIssue, displayDoctors, sortOrder, doctorName, locName, resCount);
-    $('#map').show();
+    var result = doctorModule.getDoctors(medicalIssue, displayDoctors, sortOrder, doctorName, city, state, resCount);
+    console.log(result);
+    if (result) {
+        $('#map').show();
+    }
   });
 });
